@@ -1,6 +1,5 @@
 from functools import reduce
 from dateutil import parser 
-import concurrent.futures
 import threading 
 import datetime 
 import socket 
@@ -52,7 +51,8 @@ def startConnecting():
 
 		current_thread = threading.Thread( 
 						target = startRecieveingClockTime, 
-						args = (clock_time_string, slave_address, )) 
+						args = (clock_time_string, slave_address, ),
+						daemon=True) 
 		current_thread.start() 
 
 
@@ -107,13 +107,14 @@ def synchronizeAllClocks():
 			synchronized_time = sync_round_time + average_clock_difference
 
 			# Spawn a new thread to update the master node's clock with the synchronized time
-			update_master_thread = threading.Thread(target = updateMasterClock, args=())
+			update_master_thread = threading.Thread(target = updateMasterClock, args=(), daemon=True)
 			update_master_thread.start()
 
 			# Spawn threads to simultaneously send synchronized times to each slave node
 			slaves_data = [client[1] for client in client_data.items()] 
-			with concurrent.futures.ThreadPoolExecutor(max_workers=len(client_data)) as executor:
-				executor.map(sendSynchronizedTime, slaves_data)
+			# Send synchronized time to each slave node without using ThreadPoolExecutor
+			for slave_data in slaves_data:
+				sendSynchronizedTime(slave_data)
 
 			client_data = {} 			# Clean up the data about each client after every round of synchronization
 			update_master_thread.join() # Wait for updation of master node's clock before ending the round of synchronization
@@ -135,12 +136,12 @@ def initiateMasterNode(port = 8080):
 	print("Master node started at 127.0.0.1:" + str(port) + "\n") 
 
 	# start making connections 
-	master_thread = threading.Thread(target = startConnecting) 
+	master_thread = threading.Thread(target = startConnecting, daemon=True) 
 	master_thread.start() 
 
 	# start synchroniztion 
 	print("Starting synchronization parallely...\n") 
-	sync_thread = threading.Thread(target = synchronizeAllClocks) 
+	sync_thread = threading.Thread(target = synchronizeAllClocks, daemon=True) 
 	sync_thread.start() 
 
 
@@ -149,4 +150,4 @@ def initiateMasterNode(port = 8080):
 if __name__ == '__main__': 
 
 	# Trigger the Master Node Clock 
-	initiateMasterNode(port = 8080) 
+	initiateMasterNode(port = 8080)

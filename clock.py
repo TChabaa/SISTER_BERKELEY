@@ -25,4 +25,8 @@ class Clock:
         return self.local_time
 
     def __del__(self):
-        self.t._stop()
+        # Proper thread cleanup
+        if hasattr(self, 't') and self.t.is_alive():
+            # Using daemon threads, no need to explicitly stop them
+            # Just let Python handle the cleanup
+            pass
